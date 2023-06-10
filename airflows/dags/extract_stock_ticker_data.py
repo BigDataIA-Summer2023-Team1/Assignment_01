@@ -62,6 +62,7 @@ def fetch_earnings_call_data(file_name):
     return page.text
 
 
+#  Redis functions
 def redis_conn(db_host, db_port, db_username="", db_password="", decode_responses=True):
     # TODO: validation & try except
     return redis.Redis(host=db_host, port=db_port, username=db_username, password= db_password, decode_responses = decode_responses)
@@ -87,16 +88,42 @@ def chunk(it, size):
         yield p
 
 
-def load_stock_ticker_data(client: redis.Redis, selected_tickers, selected_companies, data):
+def extract_data_from_github(**context):
+    repo_owner = os.getenv("REPO_OWNER")
+    repo_name = os.getenv("REPO_NAME")
+
+    no_of_companies = context['params']['no_of_companies']
+
+    files, selected_tickers = fetch_files_from_repo(repo_owner, repo_name, no_of_companies)
+    selected_companies = fetch_companies_data(selected_tickers)
+
+    context['ti'].xcom_push(key='files', value=files)
+    context['ti'].xcom_push(key='selected_tickers', value=selected_tickers)
+    context['ti'].xcom_push(key='selected_companies', value=selected_companies)
+
+
+def load_data_to_redis(**context):
+    db_host = os.getenv("REDIS_DB_HOST")
+    db_port = os.getenv("REDIS_DB_PORT")
+
+    files = context['ti'].xcom_pull(key='files')
+    selected_tickers = context['ti'].xcom_pull(key='selected_tickers')
+    selected_companies = context['ti'].xcom_pull(key='selected_companies')
+
+    client = redis_conn(db_host, db_port)
+
+    # index
+    client.execute_command('FT.CREATE', 'idx:companies', 'ON', 'hash', 'PREFIX', '1', 'companies:', 'SCHEMA', 'date', 'TEXT', 'SORTABLE', 'company', 'TEXT', 'SORTABLE')
+
     pattern = r".*(?:{})$".format("".join(list(map(lambda x: "_" + x + "|", selected_tickers))).strip("|"))
 
     # Pipeline the 300 articles in one go
     p = client.pipeline(transaction=False)
 
-    for file in data:
+    for file in files:
         if re.match(pattern, file["name"]):
             # hash key
-            key = file['name']
+            key = "companies:" + file['name']
 
             # hash fields
             # Fetch a specific column based on a condition
@@ -110,26 +137,9 @@ def load_stock_ticker_data(client: redis.Redis, selected_tickers, selected_compa
 
     p.execute()
 
+    client.close()
+
     print("Data loaded to redis")
-
-
-def load_data(**kwargs):
-    repo_owner = os.getenv("REPO_OWNER")
-    repo_name = os.getenv("REPO_NAME")
-
-    no_of_companies = kwargs['params']['no_of_companies']
-
-    db_host = os.getenv("REDIS_DB_HOST")
-    db_port = os.getenv("REDIS_DB_PORT")
-
-    r = redis_conn(db_host, db_port)
-
-    files, selected_tickers = fetch_files_from_repo(repo_owner, repo_name, no_of_companies)
-    selected_companies = fetch_companies_data(selected_tickers)
-
-    load_stock_ticker_data(r, selected_tickers, selected_companies, files)
-
-    r.close()
 
 
 #  Create DAG to load data
@@ -148,12 +158,26 @@ dag = DAG(
 )
 
 with dag:
-    load_data_from_github_to_redis = PythonOperator(
-        task_id='load_data_from_github_to_redis',
-        python_callable=load_data,
+    # load_data_from_github_to_redis = PythonOperator(
+    #     task_id='load_data_from_github_to_redis',
+    #     python_callable=load_data,
+    #     provide_context=True,
+    #     dag=dag,
+    # )
+
+    extract_data = PythonOperator(
+        task_id='extract_data_from_github',
+        python_callable=extract_data_from_github,
         provide_context=True,
-        dag=dag,
+        dag=dag
+    )
+
+    load_data = PythonOperator(
+        task_id='index_and_load_data_to_redis',
+        python_callable=load_data_to_redis,
+        provide_context=True,
+        dag=dag
     )
 
     # Flow
-    load_data_from_github_to_redis
+    extract_data >> load_data
