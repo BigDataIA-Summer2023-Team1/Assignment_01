@@ -13,7 +13,7 @@ class UserInput(BaseModel):
 
 app = FastAPI(title = "DAMG 7245")
 
-@app.post("/api/v1/fetch-companies-data")
+@app.get("/api/v1/fetch-companies-data")
 async def fetchCompaniesData(data: UserInput) -> dict:
     #user input validations 
     if len(data.company) < 3:
@@ -24,9 +24,9 @@ async def fetchCompaniesData(data: UserInput) -> dict:
         response={"msg": "Start year cannot be greater than end year", "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         raise HTTPException(status_code=400, detail=response)
     
-    if data.startYr > datetime.now().year and data.endYr > datetime.now().year:
-        response={"msg": "Start year, End year cannot be greater than current year", "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-        raise HTTPException(status_code=400, detail=response)
+    # if data.startYr > datetime.now().year and data.endYr > datetime.now().year:
+    #     response={"msg": "Start year, End year cannot be greater than current year", "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    #     raise HTTPException(status_code=400, detail=response)
     
     try:
         redis_host = os.getenv('REDIS_DB_HOST', 'localhost')
