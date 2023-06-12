@@ -1,2 +1,4 @@
-requests
 redis
+openai
+requests
+sentence_transformers
