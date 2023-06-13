@@ -88,10 +88,10 @@ x-airflow-common:
     REPO_NAME: ${REPO_NAME}
 
   volumes:
-    - ${AIRFLOW_PROJ_DIR:-.}/airflows/dags:/opt/airflow/dags
-    - ${AIRFLOW_PROJ_DIR:-.}/airflows/logs:/opt/airflow/logs
-    - ${AIRFLOW_PROJ_DIR:-.}/airflows/config:/opt/airflow/config
-    - ${AIRFLOW_PROJ_DIR:-.}/airflows/plugins:/opt/airflow/plugins
+    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+    - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+    - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -337,28 +337,34 @@ services:
   fastapi:
     container_name: fastapi
     build:
-      context: ../fastapi-streamlit-lab/fastapi
+      context: ./api
       # context: fastapi
     restart: always
     ports:
-      - "30004:8095"
+      - "30005:8095"
     environment:
-      - HOST=fastapi
-      - PORT=8095
+      - FASTAPI_HOST=fastapi
+      - FASTAPI_PORT=8095
+      - REDIS_FLAT_DB_HOST=redis-stack-flat
+      - REDIS_FLAT_DB_PORT=6379
+      - REDIS_HNSW_DB_HOST=redis-stack-hnsw
+      - REDIS_HNSW_DB_PORT=6379
+      - JWT_ALGORITHM=HS256
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 
   # Frontend
   streamlit:
     container_name: streamlit
     build:
-      context: ../fastapi-streamlit-lab/streamlit
+      context: ./frontend
       # context: streamlit
     restart: always
     ports:
-      - "30005:8090"
+      - "30006:8090"
     depends_on:
       - fastapi
     environment:
-      - API_URL=http://fastapi:30004
+      - API_URL=http://fastapi:8095/api/v1
 
 
 volumes:
