@@ -11,3 +11,9 @@ restart:
 
 down:
 	$(COMPOSE_BASE)	-f docker-compose-local.yml down;
+
+ui:
+	streamlit run ./frontend/main.py --server.port 8090
+
+backend:
+	python ./api/main.py
