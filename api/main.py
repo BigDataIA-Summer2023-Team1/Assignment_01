@@ -4,11 +4,10 @@ import fastapi
 import uvicorn
 import redis
 import openai
-import cohere
 from redis.exceptions import ConnectionError
 
 from datetime import datetime
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from starlette.responses import JSONResponse
 from pydantic import BaseModel
@@ -19,7 +18,7 @@ from utils import is_valid_email, is_valid_password, hash_password, verify_passw
     validate_jwt_token, redis_conn
 
 # load env variables
-load_dotenv('./.env')
+# load_dotenv('./.env')
 
 
 class UserInput(BaseModel):
@@ -40,10 +39,10 @@ class Querying(BaseModel):
     query: str
 
 
-app = FastAPI(title = "DAMG 7245")
+app = FastAPI(title="DAMG 7245")
+
 
 @app.post("/api/v1/login")
-
 async def login(user: User) -> JSONResponse:
     # user input validations
     response = {}
@@ -61,8 +60,8 @@ async def login(user: User) -> JSONResponse:
         raise HTTPException(status_code=400, detail=response)
 
     try:
-        redis_host = os.getenv('REDIS_DB_HOST', 'localhost')
-        redis_port = int(os.getenv('REDIS_DB_PORT', 30001))
+        redis_host = os.getenv('REDIS_FLAT_DB_HOST', 'localhost')
+        redis_port = int(os.getenv('REDIS_FLAT_DB_PORT', 30001))
 
         client = redis_conn(redis_host, redis_port)
 
@@ -226,13 +225,15 @@ def search_redis(
 
 @app.get("/api/v1/fetch-companies-data")
 async def fetchCompaniesData(data: UserInput) -> dict:
-    #user input validations
+    # user input validations
     if len(data.company) < 3:
-        response={"msg": "Company name should be of atleast 3 characters", "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        response = {"msg": "Company name should be of atleast 3 characters",
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         raise HTTPException(status_code=400, detail=response)
 
     if data.startYr > data.endYr:
-        response={"msg": "Start year cannot be greater than end year", "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        response = {"msg": "Start year cannot be greater than end year",
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         raise HTTPException(status_code=400, detail=response)
 
     # if data.startYr > datetime.now().year and data.endYr > datetime.now().year:
@@ -240,18 +241,18 @@ async def fetchCompaniesData(data: UserInput) -> dict:
     #     raise HTTPException(status_code=400, detail=response)
 
     try:
-        redis_host = os.getenv('REDIS_DB_HOST', 'localhost')
-        redis_port = int(os.getenv('REDIS_DB_PORT', 30001))
+        redis_host = os.getenv('REDIS_FLAT_DB_HOST', 'localhost')
+        redis_port = int(os.getenv('REDIS_FLAT_DB_PORT', 30001))
 
         client = redis.Redis(host=redis_host, port=redis_port, username="", password="", decode_responses=True)
 
         date_range = ""
-        for year in range(data.startYr, data.endYr+1):
+        for year in range(data.startYr, data.endYr + 1):
             date_range += "^" + str(year) + "*|"
 
         date_range = date_range[:-1]
 
-        query="@company:{} @date:({})".format(data.company, date_range)
+        query = "@company:{} @date:({})".format(data.company, date_range)
 
         result = client.execute_command("FT.SEARCH", "idx:companies", query)
 
@@ -262,9 +263,10 @@ async def fetchCompaniesData(data: UserInput) -> dict:
         return JSONResponse(status_code=200, content=response)
 
     except ConnectionError as e:
-        response={"msg": "Server is down", "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        response = {"msg": "Server is down", "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
         raise HTTPException(status_code=500, detail=response)
+
 
 host = os.getenv("FASTAPI_HOST", "localhost")
 port = os.getenv("FASTAPI_PORT", 8000)

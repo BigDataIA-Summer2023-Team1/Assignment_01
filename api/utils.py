@@ -3,12 +3,12 @@ import re
 import time
 import redis
 from jose import jwt
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import bcrypt
 
 # load env variables
-load_dotenv('./.env')
+# load_dotenv('./.env')
 
 
 def is_valid_email(email):
