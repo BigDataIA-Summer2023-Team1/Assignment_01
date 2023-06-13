@@ -1,0 +1,7 @@
+uvicorn==0.22.0
+fastapi==0.96.0
+passlib
+python-jose==3.3.0
+bcrypt
+sentence_transformers
+openai==0.27.8
