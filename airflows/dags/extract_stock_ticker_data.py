@@ -1,22 +1,17 @@
 import os
 import re
-import redis
 import requests
 import itertools
 import pandas as pd
+from datetime import timedelta
 from dotenv import load_dotenv
+
+import redis
 
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
 from airflow.models.param import Param
-from datetime import timedelta
-
-# from redis.commands.search.field import TextField
-# from redis.commands.search.field import TagField
-
-# from redis.conn import redis_conn
-# from redis.load_stock_ticker_data_to_redis import load_stock_ticker_data
 
 # load env variables
 load_dotenv('../.env')
@@ -70,13 +65,6 @@ def redis_conn(db_host, db_port, db_username="", db_password="", decode_response
 
 def delete_data(client: redis.Redis):
     client.flushall()
-
-
-# def create_index(client):
-#     client.ft().create_index([
-#         TagField("company"),
-#         TextField("date"),
-#     ])
 
 
 def chunk(it, size):

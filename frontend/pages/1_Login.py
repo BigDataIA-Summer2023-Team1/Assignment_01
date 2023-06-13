@@ -1,40 +1,40 @@
+import os
+import json
+import requests
 import pandas as pd
 import streamlit as st
 
-st.title('Plot Nexrad Data')
+st.title('Login')
+
+BASE_URL = os.getenv("API_URL", "http://localhost:8000/api/v1")
 
 
-@st.cache_data
-def get_station_list():
-    # read following columns in the nexrad station dataset
-    cols = [
-        (20, 51),  # Name
-        (72, 75),  # ST
-        (106, 116),  # Lat
-        (116, 127)  # Lon
-    ]
-    # read the dataset as a pandas dataframe using fixed width format
-    data = pd.read_fwf(
-        r"https://www.ncei.noaa.gov/access/homr/file/nexrad-stations.txt", colspecs=cols, skiprows=[1])
-    # filter rows with are not null
-    data = data[data['ST'].notna()]
-    return data
+# @st.cache_data
+def login_page():
+    st.divider()
+
+    with st.form("login", clear_on_submit=True):
+        email_address = st.text_input("Email", value="", placeholder="Enter your email!", key="email_address")
+        password = st.text_input("Password", type="password", value="", placeholder="Enter your password!",
+                                 key="password")
+
+        submitted = st.form_submit_button("Login")
+        if submitted:
+            if st.spinner("Loading..."):
+                url = f"{BASE_URL}/login"
+
+                json_payload = json.dumps({"email": email_address, "password": password})
+                headers = {'Content-Type': 'application/json'}
+                response = requests.request(
+                    "POST", url, headers=headers, data=json_payload)
+
+                if response.status_code == 200:
+                    st.session_state['email'] = response.json()["email"]
+                    st.session_state["token"] = response.json()["token"]
+
+                    st.json(response.json())
+                else:
+                    st.error("Invalid Credentials!!!, Come back again")
 
 
-data_load_state = st.text('Loading ...')
-df = get_station_list()
-data_load_state.text("")
-# select the unique states for user to filter
-options = st.multiselect(label='Filter based on state', options=list(
-    df['ST'].sort_values().unique()), default=['MA'])
-
-# show raw data if user wants
-if st.checkbox('Show raw data'):
-    st.subheader('Raw data')
-    st.write(df[df['ST'].isin(options)].sort_values(by='ST'))
-
-if df.empty:
-    st.write('No data in db')
-else:
-    st.map(df[df['ST'].isin(options)][['LAT', 'LON']])
-
+login_page()
